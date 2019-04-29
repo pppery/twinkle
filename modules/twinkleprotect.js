@@ -1363,7 +1363,7 @@ Twinkle.protect.callback.evaluate = function twinkleprotectCallbackEvaluate(e) {
 					typereason = '';
 					break;
 			}
-			
+
 			var reason = typereason;
 			if( form.reason.value !== '') {
 				if ( typereason !== '' ) {
