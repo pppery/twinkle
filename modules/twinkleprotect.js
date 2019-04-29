@@ -1421,6 +1421,7 @@ Twinkle.protect.callback.evaluate = function twinkleprotectCallbackEvaluate(e) {
 				rppName = "Wikipedia:Requests for page protection/Increase";
 			} else {
 				rppName = "Wikipedia:Requests for page protection/Decrease";
+			}
 
 			// Updating data for the action completed event
 			Morebits.wiki.actionCompleted.redirect = rppName;
@@ -1539,8 +1540,6 @@ Twinkle.protect.callbacks = {
 
 		newtag += "'''" + Morebits.string.toUpperCaseFirstChar(words) + ( params.reason !== '' ? ( ":''' " +
 			Morebits.string.formatReasonText(params.reason) ) : ".'''" ) + " ~~~~";
-
-		var reg;
 
 		text = text + "\n" + newtag + "\n";
 		statusElement.status( 'Adding new request...' );
