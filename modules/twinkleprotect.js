@@ -1363,7 +1363,7 @@ Twinkle.protect.callback.evaluate = function twinkleprotectCallbackEvaluate(e) {
 					typereason = '';
 					break;
 			}
-
+			
 			var reason = typereason;
 			if( form.reason.value !== '') {
 				if ( typereason !== '' ) {
@@ -1375,17 +1375,52 @@ Twinkle.protect.callback.evaluate = function twinkleprotectCallbackEvaluate(e) {
 				reason += '.';
 			}
 
+			// If either protection type results in a increased status, then post it to /Increase
+			// else we post to /Decrease
+			var increase = false;
+			var protInfo = Twinkle.protect.protectionPresetsInfo[form.category.value];
+			// function to compute protection weights (see comment at Twinkle.protect.protectionWeight)
+			var computeWeight = function(mainLevel, stabilizeLevel) {
+				var result = Twinkle.protect.protectionWeight[mainLevel || 'all'];
+				if (stabilizeLevel) {
+					if (result) {
+						if (stabilizeLevel.level === "autoconfirmed") {
+							result += 2;
+						}
+					} else {
+						result = Twinkle.protect.protectionWeight["flaggedrevs_" + stabilizeLevel];
+					}
+				}
+				return result;
+			};
+
+			// compare the page's current protection weights with the protection we are requesting
+			var editWeight = computeWeight(Twinkle.protect.currentProtectionLevels.edit &&
+				Twinkle.protect.currentProtectionLevels.edit.level,
+				Twinkle.protect.currentProtectionLevels.stabilize &&
+				Twinkle.protect.currentProtectionLevels.stabilize.level);
+			if (computeWeight(protInfo.edit, protInfo.stabilize) > editWeight ||
+				computeWeight(protInfo.move) > computeWeight(Twinkle.protect.currentProtectionLevels.move &&
+				Twinkle.protect.currentProtectionLevels.move.level) ||
+				computeWeight(protInfo.create) > computeWeight(Twinkle.protect.currentProtectionLevels.create &&
+				Twinkle.protect.currentProtectionLevels.create.level)) {
+				increase = true;
+			}
+
 			var rppparams = {
 				reason: reason,
 				typename: typename,
-				category: form.category.value,
 				expiry: form.expiry.value
 			};
 
 			Morebits.simpleWindow.setButtonsEnabled( false );
 			Morebits.status.init( form );
 
-			var rppName = 'Wikipedia:Requests for page protection';
+			var rppName;
+			if (increase) {
+				rppName = "Wikipedia:Requests for page protection/Increase";
+			} else {
+				rppName = "Wikipedia:Requests for page protection/Decrease";
 
 			// Updating data for the action completed event
 			Morebits.wiki.actionCompleted.redirect = rppName;
@@ -1505,56 +1540,9 @@ Twinkle.protect.callbacks = {
 		newtag += "'''" + Morebits.string.toUpperCaseFirstChar(words) + ( params.reason !== '' ? ( ":''' " +
 			Morebits.string.formatReasonText(params.reason) ) : ".'''" ) + " ~~~~";
 
-		// If either protection type results in a increased status, then post it under increase
-		// else we post it under decrease
-		var increase = false;
-		var protInfo = Twinkle.protect.protectionPresetsInfo[params.category];
-
-		// function to compute protection weights (see comment at Twinkle.protect.protectionWeight)
-		var computeWeight = function(mainLevel, stabilizeLevel) {
-			var result = Twinkle.protect.protectionWeight[mainLevel || 'all'];
-			if (stabilizeLevel) {
-				if (result) {
-					if (stabilizeLevel.level === "autoconfirmed") {
-						result += 2;
-					}
-				} else {
-					result = Twinkle.protect.protectionWeight["flaggedrevs_" + stabilizeLevel];
-				}
-			}
-			return result;
-		};
-
-		// compare the page's current protection weights with the protection we are requesting
-		var editWeight = computeWeight(Twinkle.protect.currentProtectionLevels.edit &&
-			Twinkle.protect.currentProtectionLevels.edit.level,
-			Twinkle.protect.currentProtectionLevels.stabilize &&
-			Twinkle.protect.currentProtectionLevels.stabilize.level);
-		if (computeWeight(protInfo.edit, protInfo.stabilize) > editWeight ||
-			computeWeight(protInfo.move) > computeWeight(Twinkle.protect.currentProtectionLevels.move &&
-			Twinkle.protect.currentProtectionLevels.move.level) ||
-			computeWeight(protInfo.create) > computeWeight(Twinkle.protect.currentProtectionLevels.create &&
-			Twinkle.protect.currentProtectionLevels.create.level)) {
-			increase = true;
-		}
-
 		var reg;
-		if ( increase ) {
-			reg = /(\n==\s*Current requests for reduction in protection level\s*==)/;
-		} else {
-			reg = /(\n==\s*Current requests for edits to a protected page\s*==)/;
-		}
 
-		var originalTextLength = text.length;
-		text = text.replace( reg, "\n" + newtag + "\n$1");
-		if (text.length === originalTextLength)
-		{
-			var linknode = document.createElement('a');
-			linknode.setAttribute("href", mw.util.getUrl("Wikipedia:Twinkle/Fixing RPP") );
-			linknode.appendChild(document.createTextNode('How to fix RPP'));
-			statusElement.error( [ 'Could not find relevant heading on WP:RPP. To fix this problem, please see ', linknode, '.' ] );
-			return;
-		}
+		text = text + "\n" + newtag + "\n";
 		statusElement.status( 'Adding new request...' );
 		rppPage.setEditSummary( "Requesting " + params.typename + (params.typename === "pending changes" ? ' on [[:' : ' of [[:') +
 			Morebits.pageNameNorm + ']].' + Twinkle.getPref('summaryAd') );
